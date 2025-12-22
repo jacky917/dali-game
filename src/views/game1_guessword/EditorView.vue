@@ -9,16 +9,22 @@
       </header>
 
       <form class="form-grid" @submit.prevent="handleSave">
-        <label class="field">
-          <span>標題</span>
-          <input v-model="form.title" type="text" placeholder="今日題目" />
-        </label>
+        <!-- 權限：僅 user/admin 可設定標題與提示 -->
+        <AuthGate :roles="['user', 'admin']">
+          <label class="field">
+            <span>標題</span>
+            <input v-model="form.title" type="text" placeholder="今日題目" />
+          </label>
+        </AuthGate>
 
-        <label class="field">
-          <span>提示敘述</span>
-          <textarea v-model="form.clue" rows="3" placeholder="請根據提示猜出底圖文字"></textarea>
-        </label>
+        <AuthGate :roles="['user', 'admin']">
+          <label class="field">
+            <span>提示敘述</span>
+            <textarea v-model="form.clue" rows="3" placeholder="請根據提示猜出底圖文字"></textarea>
+          </label>
+        </AuthGate>
 
+        <!-- 基本題目設定：文字、大小、字體、顏色 -->
         <div class="row-4">
           <label class="field">
             <span>題目</span>
@@ -45,6 +51,7 @@
           </label>
         </div>
 
+        <!-- 方塊樣式選擇：長按可開啟編輯 dialog -->
         <div class="field">
           <span>遮罩方塊樣式（長按可編輯）</span>
           <div class="style-options">
@@ -65,16 +72,55 @@
           </div>
         </div>
 
+        <!-- row-settings：一排控制格子/紅框/互動效果等（由 grid-template-columns 統一控寬） -->
         <div class="row-settings">
           <label class="field two-inline option">
             <span>格子數量</span>
             <div class="inline-inputs single">
               <div class="inline-field">
-                <input class="grid-size-input" v-model.number="gridSize" type="number" />
+                <input class="grid-size-input" v-model.number="blockGridSize" type="number" min="1" max="9" />
               </div>
             </div>
-            <span class="small-label">目前：{{ gridSize || 0 }} × {{ gridSize || 0 }}</span>
+            <span class="small-label">目前：{{ blockGridSize || 0 }} × {{ blockGridSize || 0 }}</span>
           </label>
+
+          <div class="field option">
+            <span>紅框</span>
+            <div class="redframe-controls" aria-label="紅框設定（開關 / 數量 / 粗細）">
+              <button
+                type="button"
+                class="toggle"
+                :class="{ on: form.canvasGridGuide }"
+                @click="form.canvasGridGuide = !form.canvasGridGuide"
+              >
+                <span class="toggle-knob"></span>
+                <span class="toggle-text">{{ form.canvasGridGuide ? '開' : '關' }}</span>
+              </button>
+              <input
+                class="grid-size-input"
+                v-model.number="gridGuideSize"
+                type="number"
+                min="1"
+                max="9"
+                :disabled="!form.canvasGridGuide"
+                aria-label="紅框數量（方形）"
+              />
+              <select
+                class="thin-select"
+                v-model.number="form.canvasGridThickness"
+                :disabled="!form.canvasGridGuide"
+                aria-label="紅框粗細"
+              >
+                <option :value="1">細</option>
+                <option :value="2">中</option>
+                <option :value="3">粗</option>
+                <option :value="4">特粗</option>
+              </select>
+            </div>
+            <span class="small-label">
+              {{ form.canvasGridGuide ? `數量：${gridGuideSize || 0} × ${gridGuideSize || 0}` : '停用紅框' }}
+            </span>
+          </div>
 
           <div class="field option">
             <span>圓角</span>
@@ -91,33 +137,138 @@
           </div>
 
           <div class="field option">
-            <span>紅框</span>
-            <div class="redframe-controls" aria-label="紅框與粗細">
-              <button
-                type="button"
-                class="toggle"
-                :class="{ on: form.canvasGridGuide }"
-                @click="form.canvasGridGuide = !form.canvasGridGuide"
-              >
-                <span class="toggle-knob"></span>
-                <span class="toggle-text">{{ form.canvasGridGuide ? '開' : '關' }}</span>
-              </button>
-              <select
-                class="thin-select"
-                v-model.number="form.canvasGridThickness"
-                :disabled="!form.canvasGridGuide"
-                aria-label="紅框粗細"
-              >
-                <option :value="1">細 (1px)</option>
-                <option :value="2">中 (2px)</option>
-                <option :value="3">粗 (3px)</option>
-                <option :value="4">特粗 (4px)</option>
-              </select>
-            </div>
+            <span>音效</span>
+            <button
+              type="button"
+              class="toggle"
+              :class="{ on: form.soundEnabled }"
+              @click="form.soundEnabled = !form.soundEnabled"
+            >
+              <span class="toggle-knob"></span>
+              <span class="toggle-text">{{ form.soundEnabled ? '開' : '關' }}</span>
+            </button>
             <span class="small-label">&nbsp;</span>
           </div>
 
-          <label class="field url-wide option">
+          <div class="field option">
+            <span>Hover</span>
+            <button
+              type="button"
+              class="toggle"
+              :class="{ on: form.hoverEnabled }"
+              @click="form.hoverEnabled = !form.hoverEnabled"
+            >
+              <span class="toggle-knob"></span>
+              <span class="toggle-text">{{ form.hoverEnabled ? '開' : '關' }}</span>
+            </button>
+            <span class="small-label">&nbsp;</span>
+          </div>
+
+          <div class="field option">
+            <span>消失動畫</span>
+            <button
+              type="button"
+              class="toggle"
+              :class="{ on: form.blockDisappearAnimEnabled }"
+              @click="form.blockDisappearAnimEnabled = !form.blockDisappearAnimEnabled"
+            >
+              <span class="toggle-knob"></span>
+              <span class="toggle-text">{{ form.blockDisappearAnimEnabled ? '開' : '關' }}</span>
+            </button>
+            <span class="small-label">&nbsp;</span>
+          </div>
+
+          <div class="field option">
+            <span>再點重現</span>
+            <button
+              type="button"
+              class="toggle"
+              :class="{ on: form.blockReappearOnClickEnabled }"
+              @click="form.blockReappearOnClickEnabled = !form.blockReappearOnClickEnabled"
+            >
+              <span class="toggle-knob"></span>
+              <span class="toggle-text">{{ form.blockReappearOnClickEnabled ? '開' : '關' }}</span>
+            </button>
+            <span class="small-label">&nbsp;</span>
+          </div>
+
+          <div class="field option">
+            <span>顯示編號</span>
+            <button
+              type="button"
+              class="toggle"
+              :class="{ on: form.blockNumberEnabled }"
+              @click="form.blockNumberEnabled = !form.blockNumberEnabled"
+            >
+              <span class="toggle-knob"></span>
+              <span class="toggle-text">{{ form.blockNumberEnabled ? '開' : '關' }}</span>
+            </button>
+            <span class="small-label">&nbsp;</span>
+          </div>
+        </div>
+
+        <!-- 顯示編號關閉時：整段「方塊編號樣式」收合並隱藏 -->
+        <div
+          class="number-settings-collapse"
+          :class="{ open: form.blockNumberEnabled }"
+          :aria-hidden="!form.blockNumberEnabled"
+        >
+          <div class="number-settings-inner">
+            <div class="number-settings">
+              <div class="number-settings-title">方塊編號樣式</div>
+              <div class="number-settings-grid">
+                <label class="field">
+                  <span>字體</span>
+                  <select v-model="form.blockNumberFont">
+                    <option v-for="f in fontOptions" :key="f.value" :value="f.value">
+                      {{ f.label }}
+                    </option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>大小</span>
+                  <input v-model.number="form.blockNumberSize" type="number" min="8" max="80" />
+                </label>
+
+                <label class="field color-field">
+                  <span>顏色</span>
+                  <div class="color-picker">
+                    <input
+                      v-model="form.blockNumberColor"
+                      type="color"
+                      class="color-input"
+                      :style="{ background: form.blockNumberColor }"
+                    />
+                    <span class="color-hex">{{ form.blockNumberColor }}</span>
+                  </div>
+                </label>
+
+                <label class="field">
+                  <span>陰影</span>
+                  <select v-model="form.blockNumberShadow">
+                    <option value="none">無</option>
+                    <option value="soft">柔和</option>
+                    <option value="strong">強烈</option>
+                    <option value="glow">發光</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>樣式</span>
+                  <select v-model="form.blockNumberStyle">
+                    <option value="plain">純文字</option>
+                    <option value="badge">圓牌</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 權限：僅 user/admin 可設定背景圖片（guest 一律遮蔽、避免洩露/排版混亂） -->
+        <AuthGate :roles="['user', 'admin']">
+          <label class="field bg-wide">
             <span>背景圖片（選填）</span>
             <div class="url-row">
               <select v-model="form.backgroundFit" class="fit-select" aria-label="背景圖片顯示方式">
@@ -132,31 +283,30 @@
             <span class="small-label bg-err" v-else-if="bgStatus === 'error'">{{ bgError }}</span>
             <span class="small-label bg-hint" v-else>建議使用同源 /public 圖片或支援 CORS 的圖床，亦可貼 data URL。</span>
           </label>
-        </div>
+        </AuthGate>
 
+        <!-- 即時預覽：Canvas 會隨容器大小自適應（含 DPR 渲染） -->
         <div class="preview-card">
           <div class="preview-header">
             <p class="eyebrow">即時預覽</p>
           </div>
           <div class="preview-canvas" :style="{ '--preview-radius': form.canvasRounded !== false ? '16px' : '0px' }">
             <GameCanvas :base-image="previewBaseImage" :rounded="form.canvasRounded !== false" :aspect-ratio="1" />
-            <div
-              v-if="form.canvasGridGuide"
-              class="preview-grid-guide"
-              :style="previewGuideStyle"
-            ></div>
             <div class="preview-hint small-label">Ctrl + 方向鍵 調整文字位置</div>
           </div>
         </div>
 
+        <!-- 主要動作：重置 / 儲存（依權限決定是否可儲存） -->
         <div class="actions">
           <button type="button" class="btn subtle" @click="reset">重置預設</button>
-          <button type="submit" class="btn primary">儲存題目</button>
+          <button type="submit" class="btn primary" :disabled="!canEditQuiz">儲存題目</button>
         </div>
       </form>
 
+      <!-- 右下角浮動提示（復用元件，確保 z-index 在最上層） -->
       <FloatingToast :message="toast?.message ?? null" :mode="toast?.type ?? 'success'" />
 
+      <!-- 樣式編輯 Dialog：使用 teleport 避免被父層 overflow 截斷 -->
       <teleport to="body">
         <transition name="dialog-fade">
           <div v-if="styleDialogOpen" class="dialog-backdrop" @click.self="onDialogBackdropClick">
@@ -167,77 +317,131 @@
               </header>
 
               <div class="dialog-body two-pane">
-                <div class="dialog-controls" v-if="editingStyle === 'solid-dark'">
-                  <label class="dialog-field">
-                    <span>填充顏色</span>
-                    <input type="color" v-model="styleDraft.fill" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>邊框顏色</span>
-                    <input type="color" v-model="styleDraft.border" />
-                  </label>
-                </div>
+                <div class="dialog-controls">
+                  <div class="dialog-section">
+                    <div class="dialog-section-title">共通設定</div>
 
-                <div class="dialog-controls" v-else-if="editingStyle === 'frosted'">
-                  <label class="dialog-field">
-                    <span>邊框顏色</span>
-                    <input type="color" v-model="styleDraft.border" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>模糊強度 (px)</span>
-                    <input type="range" min="0" max="40" step="1" v-model.number="styleDraft.blur" />
-                    <span class="small-label">{{ styleDraft.blur ?? 0 }} px</span>
-                  </label>
-                  <label class="dialog-field">
-                    <span>透明度</span>
-                    <input type="range" min="0" max="1" step="0.05" v-model.number="styleDraft.opacity" />
-                    <span class="small-label">{{ ((styleDraft.opacity ?? 0.45) * 100).toFixed(0) }}%</span>
-                  </label>
-                </div>
-
-                <div class="dialog-controls" v-else-if="editingStyle === 'neon'">
-                  <label class="dialog-field">
-                    <span>起始顏色</span>
-                    <input type="color" v-model="styleDraft.from" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>結束顏色</span>
-                    <input type="color" v-model="styleDraft.to" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>邊框顏色</span>
-                    <input type="color" v-model="styleDraft.border" />
-                  </label>
-                </div>
-
-                <div class="dialog-controls" v-else-if="editingStyle === 'silver'">
-                  <label class="dialog-field">
-                    <span>起始顏色</span>
-                    <input type="color" v-model="styleDraft.from" />
-                  </label>
                     <label class="dialog-field">
-                    <span>結束顏色</span>
-                    <input type="color" v-model="styleDraft.to" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>邊框顏色</span>
-                    <input type="color" v-model="styleDraft.border" />
-                  </label>
-                </div>
+                      <span>翻開音效</span>
+                      <div class="dialog-select-row">
+                        <select v-model="styleDraft.soundOpen">
+                          <option v-for="o in SOUND_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                        </select>
+                        <button type="button" class="mini-btn" @click="previewSound(styleDraft.soundOpen)">試聽</button>
+                      </div>
+                    </label>
 
-                <div class="dialog-controls" v-else-if="editingStyle === 'plum'">
-                  <label class="dialog-field">
-                    <span>內圈顏色</span>
-                    <input type="color" v-model="styleDraft.from" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>外圈顏色</span>
-                    <input type="color" v-model="styleDraft.to" />
-                  </label>
-                  <label class="dialog-field">
-                    <span>邊框顏色</span>
-                    <input type="color" v-model="styleDraft.border" />
-                  </label>
+                    <label class="dialog-field">
+                      <span>蓋上音效</span>
+                      <div class="dialog-select-row">
+                        <select v-model="styleDraft.soundClose">
+                          <option v-for="o in SOUND_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                        </select>
+                        <button type="button" class="mini-btn" @click="previewSound(styleDraft.soundClose)">試聽</button>
+                      </div>
+                    </label>
+
+                    <label class="dialog-field">
+                      <span>賓果音效</span>
+                      <div class="dialog-select-row">
+                        <select v-model="styleDraft.soundBingo">
+                          <option v-for="o in SOUND_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                        </select>
+                        <button type="button" class="mini-btn" @click="previewSound(styleDraft.soundBingo)">試聽</button>
+                      </div>
+                    </label>
+
+                    <label class="dialog-field">
+                      <span>Hover</span>
+                      <select v-model="styleDraft.hoverFx">
+                        <option v-for="o in HOVER_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                      </select>
+                    </label>
+
+                    <label class="dialog-field">
+                      <span>消失動畫</span>
+                      <select v-model="styleDraft.disappearAnim">
+                        <option v-for="o in DISAPPEAR_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="dialog-section">
+                    <div class="dialog-section-title">樣式外觀</div>
+
+                    <template v-if="editingStyle === 'solid-dark'">
+                      <label class="dialog-field">
+                        <span>填充顏色</span>
+                        <input type="color" v-model="styleDraft.fill" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>邊框顏色</span>
+                        <input type="color" v-model="styleDraft.border" />
+                      </label>
+                    </template>
+
+                    <template v-else-if="editingStyle === 'frosted'">
+                      <label class="dialog-field">
+                        <span>邊框顏色</span>
+                        <input type="color" v-model="styleDraft.border" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>模糊強度 (px)</span>
+                        <input type="range" min="0" max="40" step="1" v-model.number="styleDraft.blur" />
+                        <span class="small-label">{{ styleDraft.blur ?? 0 }} px</span>
+                      </label>
+                      <label class="dialog-field">
+                        <span>透明度</span>
+                        <input type="range" min="0" max="1" step="0.05" v-model.number="styleDraft.opacity" />
+                        <span class="small-label">{{ ((styleDraft.opacity ?? 0.45) * 100).toFixed(0) }}%</span>
+                      </label>
+                    </template>
+
+                    <template v-else-if="editingStyle === 'neon'">
+                      <label class="dialog-field">
+                        <span>起始顏色</span>
+                        <input type="color" v-model="styleDraft.from" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>結束顏色</span>
+                        <input type="color" v-model="styleDraft.to" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>邊框顏色</span>
+                        <input type="color" v-model="styleDraft.border" />
+                      </label>
+                    </template>
+
+                    <template v-else-if="editingStyle === 'silver'">
+                      <label class="dialog-field">
+                        <span>起始顏色</span>
+                        <input type="color" v-model="styleDraft.from" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>結束顏色</span>
+                        <input type="color" v-model="styleDraft.to" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>邊框顏色</span>
+                        <input type="color" v-model="styleDraft.border" />
+                      </label>
+                    </template>
+
+                    <template v-else-if="editingStyle === 'plum'">
+                      <label class="dialog-field">
+                        <span>內圈顏色</span>
+                        <input type="color" v-model="styleDraft.from" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>外圈顏色</span>
+                        <input type="color" v-model="styleDraft.to" />
+                      </label>
+                      <label class="dialog-field">
+                        <span>邊框顏色</span>
+                        <input type="color" v-model="styleDraft.border" />
+                      </label>
+                    </template>
+                  </div>
                 </div>
 
                 <div class="dialog-preview">
@@ -262,20 +466,53 @@
 <script setup lang="ts">
 import { reactive, computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useGuesswordConfig } from '@/composables/useGuesswordConfig'
+import { useGuesswordConfig, DEFAULT_BLOCK_STYLE_COMMON } from '@/composables/useGuesswordConfig'
 import GameCanvas from '@/components/game1_guessword/GameCanvas.vue'
 import { getFontOptions, loadLocalFonts } from '@/utils/localFonts'
 import FloatingToast from '@/components/ui/FloatingToast.vue'
+import { useAuth } from '@/composables/useAuth'
+import { playSfx, type SfxId } from '@/utils/sfx'
 
+/**
+ * EditorView（猜字遊戲題庫編輯器）
+ * - 目的：提供題目/底圖文字/遮罩方塊樣式的設定介面，並即時預覽
+ * - 原則：UI 看得到的功能就能操作（依權限決定顯示/可編輯）
+ * - 特別注意：
+ *   1) 文字位置用 Ctrl/Cmd + 方向鍵微調（避免干擾輸入框）
+ *   2) 「格子數量」與「紅框數量」為兩組獨立值，但各自維持方形 N×N
+ *   3) 權限不足（guest）時：背景圖片在預覽與遊戲端都會被遮蔽，但資料仍留在 localStorage
+ */
+
+type ToastMode = 'success' | 'warning' | 'error'
+
+// ---------------------------
+// Router & Config
+// ---------------------------
 const router = useRouter()
 const route = useRoute()
 const { quizConfig, setConfig, resetConfig, defaultConfig } = useGuesswordConfig()
+
+// 以 reactive 複製一份供表單編輯（避免直接改動儲存狀態造成副作用）
 const form = reactive({ ...quizConfig.value })
-const toast = ref<{ message: string; type: 'success' | 'warning' | 'error' } | null>(null)
+
+// ---------------------------
+// Auth / Permission
+// ---------------------------
+const { canEditQuiz, canEditStyles, hasRole } = useAuth()
+const canViewAdvanced = computed(() => hasRole(['user', 'admin']))
+
+// ---------------------------
+// UI State
+// ---------------------------
+const toast = ref<{ message: string; type: ToastMode } | null>(null)
 let toastTimer: number | null = null
 const bgStatus = ref<'idle' | 'loading' | 'ok' | 'error'>('idle')
 const bgError = ref('')
 const fontOptions = ref(getFontOptions())
+
+// ---------------------------
+// 樣式長按編輯 Dialog
+// ---------------------------
 const styleDialogOpen = ref(false)
 const editingStyle = ref('solid-dark')
 const styleDraft = reactive<any>({})
@@ -283,14 +520,57 @@ const dialogPreview = computed<any>(() => buildPreviewStyle(editingStyle.value, 
 let longPressTimer: any = null
 let suppressBackdropClick = false
 
+// ---------------------------
+// UI：樣式選項（Chip）
+// ---------------------------
 const blockStyles = [
   { value: 'solid-dark', label: '深色實心' },
   { value: 'frosted', label: '霧面玻璃' },
-  { value: 'neon', label: '霓虹漸層' },
-  { value: 'silver', label: '銀灰亮面' },
+  { value: 'neon', label: '復古粗框' },
+  { value: 'silver', label: '撞球' },
   { value: 'plum', label: '深紫霧光' },
 ]
 
+// ---------------------------
+// 共通選項（所有方塊樣式共用）
+// - 未來要新增音效/hover/動畫：優先改這些 options，維持擴充清楚
+// ---------------------------
+const SOUND_OPTIONS = [
+  { value: 'pop-1', label: 'Pop 1（輕快）' },
+  { value: 'pop-2', label: 'Pop 2（厚實）' },
+  { value: 'pop-3', label: 'Pop 3（俐落）' },
+  { value: 'pop-4', label: 'Pop 4（柔和）' },
+  { value: 'pop-5', label: 'Pop 5（雙音）' },
+  { value: 'pop-6', label: 'Pop 6（亮音）' },
+  { value: 'pop-7', label: 'Pop 7（鈴聲）' },
+  { value: 'pop-8', label: 'Pop 8（短促）' },
+  { value: 'pop-9', label: 'Pop 9（低沉）' },
+  { value: 'pop-10', label: 'Pop 10（賓果）' },
+]
+
+const HOVER_OPTIONS = [
+  { value: 'glow', label: 'Glow（微光）' },
+  { value: 'lift', label: 'Lift（輕微上浮）' },
+  { value: 'top', label: 'Top（置頂上浮）' },
+]
+
+const DISAPPEAR_OPTIONS = [
+  { value: 'fade', label: 'Fade（淡出）' },
+  { value: 'scale', label: 'Scale（縮小淡出）' },
+]
+
+// Dialog 的共通預設值：與遊戲端 defaultConfig 共用同一份，避免預設不一致
+const COMMON_STYLE_DEFAULTS = { ...DEFAULT_BLOCK_STYLE_COMMON }
+
+// 在 Editor 內試聽音效（不影響遊戲邏輯）
+function previewSound(id: any) {
+  if (!id) return
+  void playSfx(id as SfxId, 0.35)
+}
+
+// ---------------------------
+// Canvas 預覽資料（傳給 GameCanvas）
+// ---------------------------
 const previewBaseImage = computed(() => ({
   text: form.displayText,
   textColor: form.textColor,
@@ -298,15 +578,21 @@ const previewBaseImage = computed(() => ({
   font: form.font,
   textX: form.textX,
   textY: form.textY,
-  backgroundUrl: form.backgroundUrl,
+  // 權限不足時：背景不應顯示（但仍保留在儲存中，供 user/admin 回來使用）
+  backgroundUrl: canViewAdvanced.value ? form.backgroundUrl : '',
   backgroundFit: form.backgroundFit,
+  canvasGridGuide: form.canvasGridGuide,
+  canvasGridThickness: form.canvasGridThickness,
+  canvasGridRows: form.canvasGridRows,
+  canvasGridCols: form.canvasGridCols,
+  blockRows: form.blockRows,
+  blockCols: form.blockCols,
   aspectRatio: 4 / 3,
 }))
 
-const previewGuideStyle = computed(() => ({
-  '--g': `${Number(form.canvasGridThickness) || 2}px`,
-}))
-
+// ---------------------------
+// 字體：教育部標準楷書（若本地有放入，就自動切換到它）
+// ---------------------------
 const EDUKAI_LOCAL_FAMILY = 'local-edukai-5-0'
 
 function applyDefaultFontIfAvailable() {
@@ -318,6 +604,9 @@ function applyDefaultFontIfAvailable() {
   form.font = hasEdukai ? EDUKAI_LOCAL_FAMILY : defaultConfig.font
 }
 
+// ---------------------------
+// 文字位置微調（Ctrl/Cmd + 方向鍵）
+// ---------------------------
 function clamp01Text(v: number) {
   return Math.min(Math.max(v, 0), 1)
 }
@@ -356,6 +645,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleTextNudgeKeydown)
 })
 
+// ---------------------------
+// 表單欄位：題目文字（displayText/answer 兩者同步）
+// ---------------------------
 const unifiedText = computed({
   get() {
     return form.displayText || form.answer || ''
@@ -366,19 +658,39 @@ const unifiedText = computed({
   },
 })
 
-const gridSize = computed({
+// ---------------------------
+// row-settings：格子/紅框數量（分開設置，但各自維持方形 N×N）
+// ---------------------------
+const blockGridSize = computed({
   get() {
-    return Number(form.blockRows) || Number(form.blockCols) || 3
+    const v = Number(form.blockRows) || Number(form.blockCols) || 3
+    return Math.min(9, Math.max(1, v))
   },
   set(v: number) {
-    const n = Number(v) || 0
+    const n = Math.min(9, Math.max(1, Number(v) || 1))
     form.blockRows = n
     form.blockCols = n
   },
 })
 
+const gridGuideSize = computed({
+  get() {
+    const v = Number(form.canvasGridRows) || Number(form.canvasGridCols) || blockGridSize.value || 3
+    return Math.min(9, Math.max(1, v))
+  },
+  set(v: number) {
+    const n = Math.min(9, Math.max(1, Number(v) || 1))
+    form.canvasGridRows = n
+    form.canvasGridCols = n
+  },
+})
+
+// ---------------------------
+// 背景圖片：即時檢測（避免填入不可用/跨域圖片後還以為有效）
+// - guest 會被遮蔽，所以監聽來源也要一起遮蔽（避免不必要的 loading）
+// ---------------------------
 watch(
-  () => form.backgroundUrl,
+  () => (canViewAdvanced.value ? form.backgroundUrl : ''),
   async (url) => {
     if (!url) {
       bgStatus.value = 'idle'
@@ -398,13 +710,24 @@ watch(
   { immediate: true }
 )
 
+// ---------------------------
+// 主要操作：儲存 / 重置
+// ---------------------------
 function handleSave() {
+  if (!canEditQuiz.value) {
+    showToast('目前權限僅可查看，無法儲存（請用 user / admin）', 'warning')
+    return
+  }
   // 確保答案與底圖文字一致
   form.answer = unifiedText.value
   form.displayText = unifiedText.value
-  // 確保格子為方形
-  form.blockRows = gridSize.value
-  form.blockCols = gridSize.value
+  // 依需求：格子數量與紅框數量各自獨立，但皆為方形（寬高相等）
+  const n = Math.min(9, Math.max(1, Number(blockGridSize.value) || 1))
+  const g = Math.min(9, Math.max(1, Number(gridGuideSize.value) || n))
+  form.blockRows = n
+  form.blockCols = n
+  form.canvasGridRows = g
+  form.canvasGridCols = g
   setConfig(form)
   showToast('已儲存題目', 'success')
   const game = (route.params.gameName as string) || 'game1_guessword'
@@ -418,14 +741,21 @@ function reset() {
   showToast('已重置為預設', 'warning')
 }
 
+// ---------------------------
+// Dialog：開啟 / 關閉 / 套用
+// ---------------------------
 function openStyleDialog(style: string) {
   editingStyle.value = style
   const current = form.blockStyleConfig?.[style] || defaultConfig.blockStyleConfig?.[style] || {}
-  Object.assign(styleDraft, current)
+  Object.assign(styleDraft, COMMON_STYLE_DEFAULTS, current)
+  // migrate: soundAllOpen -> soundBingo
+  if (!styleDraft.soundBingo && styleDraft.soundAllOpen) styleDraft.soundBingo = styleDraft.soundAllOpen
   styleDialogOpen.value = true
   // 避免長按開啟後，放開滑鼠/手指剛好點到 backdrop 立刻關掉
   suppressBackdropClick = true
-  setTimeout(() => { suppressBackdropClick = false }, 250)
+  setTimeout(() => {
+    suppressBackdropClick = false
+  }, 250)
 }
 
 function closeStyleDialog() {
@@ -438,15 +768,27 @@ function onDialogBackdropClick() {
 }
 
 function saveStyleDialog() {
+  if (!canEditStyles.value) {
+    showToast('目前權限無法修改樣式（請用 user / admin）', 'warning')
+    styleDialogOpen.value = false
+    return
+  }
   form.blockStyleConfig = {
     ...form.blockStyleConfig,
-    [editingStyle.value]: { ...styleDraft },
+    [editingStyle.value]: {
+      ...styleDraft,
+      // 向後相容：保存兩個欄位，避免舊程式碼讀不到
+      soundAllOpen: styleDraft.soundBingo || styleDraft.soundAllOpen,
+    },
   }
   form.blockStyle = editingStyle.value
   styleDialogOpen.value = false
   showToast('已套用樣式', 'success')
 }
 
+// ---------------------------
+// 長按開啟 Dialog（PC：mouse、Mobile：touch）
+// ---------------------------
 function pressStyle(style: string) {
   longPressTimer && clearTimeout(longPressTimer)
   longPressTimer = setTimeout(() => {
@@ -459,6 +801,10 @@ function releaseStyle() {
   longPressTimer = null
 }
 
+// ---------------------------
+// Dialog 右側預覽：依 style 產生預覽盒子的 inline style
+// - 注意：此預覽只做「大致」效果，避免和正式的 BlockMaskGrid CSS 綁死
+// ---------------------------
 function buildPreviewStyle(style: string, cfg: any) {
   const baseBox = {
     border: '1px solid #e2e8f0',
@@ -525,6 +871,9 @@ function buildPreviewStyle(style: string, cfg: any) {
   }
 }
 
+// ---------------------------
+// 小工具：數值 clamp / 顏色加 alpha / 背景圖片探測 / Toast
+// ---------------------------
 function clamp01(v: number) {
   return Math.min(Math.max(v, 0), 1)
 }
@@ -681,9 +1030,23 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
 .row-settings {
   display: grid;
   /* 以比例分配，避免固定寬度造成溢出 */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2.5fr) minmax(0, 6fr);
-  gap: 0.75rem;
+  /* 八個欄位共用同一套欄寬，方便統一調整：
+     格子數量 / 紅框（含數量/粗細） / 圓角 / 音效 / Hover / 消失動畫 / 再點重現 / 顯示編號 */
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 3fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+  gap: 1rem;
   align-items: end;
+  /* 1) 可調整左右兩側留白（百分比、左右一致）
+     用法：在此改成 2% / 4% 等，或在父層用 style 覆寫 --row-side-pad */
+  padding-inline: var(--row-side-pad, 0%);
+  box-sizing: border-box;
 }
 
 .row-settings > * {
@@ -697,15 +1060,115 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
   box-sizing: border-box;
 }
 
+.row-settings .toggle,
+.row-settings .thin-select,
+.row-settings .grid-size-input,
+.row-settings .fit-select {
+  /* 2) row-settings 內部元件寬度一律 100%，交由 grid/gap 控制 */
+  width: 100%;
+  max-width: 100%;
+}
+
+.row-settings .toggle {
+  --ctl-width: 100%;
+}
+
+.row-settings .redframe-controls {
+  width: 100%;
+}
+
 .row-settings .small-label {
   min-height: 18px;
   line-height: 18px;
 }
 
-.row-settings .url-wide .small-label {
+.bg-wide .small-label {
+  min-height: 18px;
+  line-height: 18px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.bg-wide input[type="url"],
+.bg-wide select {
+  height: 42px;
+  box-sizing: border-box;
+}
+
+.number-settings {
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.number-settings-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  transition:
+    grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.number-settings-collapse.open {
+  grid-template-rows: 1fr;
+  margin-top: 0.25rem;
+}
+
+.number-settings-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.number-settings-collapse:not(.open) {
+  pointer-events: none;
+}
+
+.number-settings-collapse .number-settings {
+  opacity: 0;
+  transform: translateY(-6px);
+  filter: blur(2px);
+  transition:
+    opacity 180ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.number-settings-collapse.open .number-settings {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .number-settings-collapse,
+  .number-settings-collapse .number-settings {
+    transition: none !important;
+  }
+}
+
+.number-settings-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(100, 116, 139, 0.9);
+  margin-bottom: 0.65rem;
+}
+
+.number-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+@media (max-width: 860px) {
+  .number-settings-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .url-row {
@@ -763,6 +1226,14 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
   width: var(--ctl-width, 90px);
 }
 
+.grid-size-input:disabled {
+  /* 需求：紅框關閉時，紅框數量的字體要變灰（與 disabled 的粗細 select 一致） */
+  color: #94a3b8; /* slate-400 */
+  -webkit-text-fill-color: #94a3b8;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .inline-field {
   display: flex;
   flex-direction: column;
@@ -809,6 +1280,8 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
   border-radius: 0.75rem;
   border: 1px solid #e2e8f0;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  position: relative;
+  overflow: hidden;
 }
 
 .chip-label {
@@ -818,8 +1291,47 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
 
 .preview-solid-dark { background: #0f172a; }
 .preview-frosted { background: rgba(255,255,255,0.4); }
-.preview-neon { background: linear-gradient(135deg, #06b6d4, #6366f1); }
-.preview-silver { background: linear-gradient(160deg, #e5e7eb, #cbd5e1); }
+.preview-neon {
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, #f7f8fa, #eef1f5);
+  box-shadow:
+    inset 0 0 0 8px #84cc16,
+    inset 0 0 0 14px #4d7c0f,
+    inset 0 2px 0 #ffffff,
+    inset 0 -6px 10px rgba(15, 23, 42, 0.08);
+}
+.preview-silver {
+  border-radius: 9999px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.38), rgba(255,255,255,0.0) 42%),
+    radial-gradient(circle at 28% 22%, rgba(255,255,255,0.98), rgba(255,255,255,0.0) 34%),
+    radial-gradient(circle at 64% 76%, rgba(255,255,255,0.14), rgba(255,255,255,0.0) 60%),
+    radial-gradient(circle at 50% 62%, rgba(0,0,0,0.30), rgba(0,0,0,0.0) 58%),
+    radial-gradient(circle at 42% 45%, #1f2937, #0b1220 78%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.55),
+    inset 0 12px 20px rgba(255,255,255,0.22),
+    inset 0 -18px 26px rgba(0,0,0,0.26),
+    0 10px 20px rgba(15,23,42,0.18);
+}
+.preview-silver::before {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 22% 18%, rgba(255,255,255,0.45), rgba(255,255,255,0.0) 55%);
+}
+.preview-silver::after {
+  content: '';
+  position: absolute;
+  inset: 28%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 30% 30%, #ffffff, #e5e7eb 70%);
+  box-shadow:
+    inset 0 2px 4px rgba(15,23,42,0.08),
+    0 2px 8px rgba(15,23,42,0.10);
+}
 .preview-plum { background: radial-gradient(circle at 30% 30%, #a855f7 0%, #4c1d95 70%); }
 
 .dialog-backdrop {
@@ -899,6 +1411,68 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
 
 .dialog-field input[type="range"] {
   width: 100%;
+}
+
+.dialog-field select {
+  width: 100%;
+  height: 42px;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f172a;
+}
+
+.dialog-select-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mini-btn {
+  height: 42px;
+  padding: 0 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.85);
+  color: rgba(15, 23, 42, 0.8);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.mini-btn:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.mini-btn:active {
+  transform: translateY(1px);
+}
+
+.mini-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.25);
+}
+
+.dialog-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid #e2e8f0;
+  background: rgba(248, 250, 252, 0.75);
+}
+
+.dialog-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(100, 116, 139, 0.9);
+  margin-bottom: 0.15rem;
 }
 
 .dialog-preview {
@@ -1000,18 +1574,7 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
   position: relative;
 }
 
-.preview-grid-guide {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  border-radius: inherit;
-  border: var(--g, 2px) solid rgba(239, 68, 68, 0.75);
-  background-image:
-    linear-gradient(to right, rgba(239, 68, 68, 0.55) var(--g, 2px), transparent var(--g, 2px)),
-    linear-gradient(to bottom, rgba(239, 68, 68, 0.55) var(--g, 2px), transparent var(--g, 2px));
-  background-size: calc(100% / 3) calc(100% / 3);
-}
+/* preview-grid-guide 已改為 canvasRenderer 繪製（在題目文字之下） */
 
 .preview-hint {
   position: absolute;
@@ -1099,7 +1662,8 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
 }
 
 .redframe-controls {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1.3fr);
   gap: 0.5rem;
   align-items: center;
 }
@@ -1146,6 +1710,17 @@ function showToast(message: string, type: 'success' | 'warning' | 'error' = 'suc
   background: linear-gradient(90deg, #0ea5e9, #7c3aed);
   color: #fff;
   box-shadow: 0 8px 18px rgba(14,165,233,0.35);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.1);
+  box-shadow: none;
+}
+
+.btn.primary:disabled {
+  background: linear-gradient(90deg, rgba(14,165,233,0.55), rgba(124,58,237,0.55));
 }
 
 .footer-msg {

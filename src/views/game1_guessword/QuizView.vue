@@ -31,11 +31,11 @@
       <section class="question-panel">
         <div class="question-meta">
           <p class="eyebrow">當前題目</p>
-          <h3>{{ quizConfig.title || '今日題目' }}</h3>
-          <p class="subtitle">{{ quizConfig.clue || '請根據提示猜出底圖文字' }}</p>
+          <h3>{{ effectiveQuizConfig.title || '今日題目' }}</h3>
+          <p class="subtitle">{{ effectiveQuizConfig.clue || '請根據提示猜出底圖文字' }}</p>
         </div>
         <router-link to="/game/game1_guessword/editor" class="link-edit">
-          編輯題目
+          {{ canEditQuiz ? '編輯題目' : '查看題目' }}
         </router-link>
       </section>
 
@@ -51,17 +51,24 @@
                   :opacity="maskOpacity"
                   :block-style="quizConfig.blockStyle"
                   :block-style-config="quizConfig.blockStyleConfig"
+                  :hover-fx="currentStyleCfg.hoverFx"
+                  :disappear-anim="currentStyleCfg.disappearAnim"
+                  :enable-hover="quizConfig.hoverEnabled !== false"
+                  :enable-disappear-anim="quizConfig.blockDisappearAnimEnabled !== false"
+                  :reappear-on-click-enabled="quizConfig.blockReappearOnClickEnabled !== false"
+                  :show-numbers="quizConfig.blockNumberEnabled === true"
+                  :number-font="quizConfig.blockNumberFont"
+                  :number-size="quizConfig.blockNumberSize"
+                  :number-color="quizConfig.blockNumberColor"
+                  :number-shadow="quizConfig.blockNumberShadow"
+                  :number-style="quizConfig.blockNumberStyle"
                   @block-click="onBlockClick"
                 />
               </template>
               <template v-else>
                 <BigMaskOverlay :mask-config="maskConfig" :opacity="maskOpacity" :scale="maskScale" />
               </template>
-              <div
-                v-if="quizConfig.canvasGridGuide"
-                class="grid-guide"
-                :style="{ '--g': `${Number(quizConfig.canvasGridThickness) || 2}px` }"
-              ></div>
+              <!-- 紅框改由 canvasRenderer 畫在底圖上（在題目文字之下） -->
             </GameCanvas>
           </div>
         </div>
@@ -100,6 +107,8 @@ import { useBaseImage } from '@/composables/useBaseImage'
 import { useBlockMask } from '@/composables/useBlockMask'
 import { useBigMask } from '@/composables/useBigMask'
 import { useGuesswordConfig } from '@/composables/useGuesswordConfig'
+import { useAuth } from '@/composables/useAuth'
+import { playSfx, type SfxId } from '@/utils/sfx'
 
 const mode = ref<'block' | 'big'>('block')
 const maskOpacity = ref(1)
@@ -116,6 +125,8 @@ const maskScale = computed(() => {
 })
 
 const { quizConfig } = useGuesswordConfig()
+const { canEditQuiz, hasRole } = useAuth()
+const canViewAdvanced = computed(() => hasRole(['user', 'admin']))
 const initialRows = quizConfig.value.blockRows || 3
 const initialCols = quizConfig.value.blockCols || 3
 
@@ -123,8 +134,37 @@ const { baseImage } = useBaseImage()
 const { rows, cols, openedBlocks, openBlock, resetBlocks } = useBlockMask({ rows: initialRows, cols: initialCols })
 const { maskConfig, updateMask } = useBigMask()
 
+const currentStyleCfg = computed<any>(() => quizConfig.value.blockStyleConfig?.[quizConfig.value.blockStyle] || {})
+
 function onBlockClick(idx: number) {
+  const opened = openedBlocks.value instanceof Set ? openedBlocks.value.has(idx) : false
+  const styleCfg: any = quizConfig.value.blockStyleConfig?.[quizConfig.value.blockStyle] || {}
+
+  // 已翻開 → 再點重現（重新蓋回去）
+  if (opened) {
+    if (quizConfig.value.blockReappearOnClickEnabled === false) return
+    openedBlocks.value.delete(idx)
+    // 蓋回去：使用「蓋上音效」（所有樣式一致）
+    if (quizConfig.value.soundEnabled !== false) {
+      const id = (styleCfg.soundClose || 'pop-1') as SfxId
+      void playSfx(id, 0.32)
+    }
+    return
+  }
+
+  // 未翻開 → 翻開
+  if (quizConfig.value.soundEnabled !== false) {
+    const id = (styleCfg.soundOpen || 'pop-1') as SfxId
+    void playSfx(id, 0.35)
+  }
   openBlock(idx)
+
+  // 全部翻開時播放「賓果音效」
+  const total = (Number(rows.value) || 3) * (Number(cols.value) || 3)
+  if (openedBlocks.value.size === total && quizConfig.value.soundEnabled !== false) {
+    const id = ((styleCfg.soundBingo || styleCfg.soundAllOpen) || 'pop-10') as SfxId
+    void playSfx(id, 0.45)
+  }
 }
 
 function resetAll() {
@@ -133,8 +173,20 @@ function resetAll() {
   maskOpacity.value = 1
 }
 
+// 權限不足時：UI 隱藏的內容也不應在遊戲畫面生效/顯示（但仍保留在瀏覽器儲存中）
+const effectiveQuizConfig = computed(() => {
+  const cfg: any = quizConfig.value
+  if (canViewAdvanced.value) return cfg
+  return {
+    ...cfg,
+    title: '',
+    clue: '',
+    backgroundUrl: '',
+  }
+})
+
 watch(
-  quizConfig,
+  effectiveQuizConfig,
   (cfg) => {
     baseImage.value = {
       ...baseImage.value,
@@ -146,6 +198,12 @@ watch(
       textY: cfg.textY,
       backgroundUrl: cfg.backgroundUrl,
       backgroundFit: cfg.backgroundFit || 'cover',
+      canvasGridGuide: cfg.canvasGridGuide,
+      canvasGridThickness: cfg.canvasGridThickness,
+      canvasGridRows: cfg.canvasGridRows,
+      canvasGridCols: cfg.canvasGridCols,
+      blockRows: cfg.blockRows,
+      blockCols: cfg.blockCols,
     }
     rows.value = cfg.blockRows || 3
     cols.value = cfg.blockCols || 3
@@ -193,6 +251,12 @@ function adjustMaskSize(scale: number) {
 }
 
 function showAnswer() {
+  // 音效：全部翻開 / 顯示答案
+  if (quizConfig.value.soundEnabled !== false) {
+    const styleCfg: any = quizConfig.value.blockStyleConfig?.[quizConfig.value.blockStyle] || {}
+    const id = ((styleCfg.soundBingo || styleCfg.soundAllOpen) || 'pop-10') as SfxId
+    void playSfx(id, 0.42)
+  }
   maskOpacity.value = 0
 }
 

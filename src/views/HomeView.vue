@@ -24,6 +24,22 @@
         </router-link>
       </div>
 
+      <div class="role-card" aria-label="目前使用者身分">
+        <p class="role-title">目前身分</p>
+        <div class="role-pills">
+          <AuthGate roles="guest">
+            <span class="role-pill role-guest">遊客（guest）</span>
+          </AuthGate>
+          <AuthGate roles="user">
+            <span class="role-pill role-user">一般使用者（user）</span>
+          </AuthGate>
+          <AuthGate roles="admin">
+            <span class="role-pill role-admin">管理員（admin）</span>
+          </AuthGate>
+        </div>
+        <p class="role-hint">若身分不符預期，請先登出後重新登入。</p>
+      </div>
+
       <div class="home-footer">
         <p>目前已啟用遊戲：</p>
         <ul>
@@ -83,6 +99,38 @@
 
 .home-actions {
   @apply flex flex-wrap items-center gap-3 mb-8;
+}
+
+.role-card {
+  @apply mb-8 rounded-2xl border border-slate-200 bg-white/70 backdrop-blur-3xl px-5 py-4;
+}
+
+.role-title {
+  @apply text-xs font-semibold tracking-[0.18em] uppercase text-slate-500;
+}
+
+.role-pills {
+  @apply mt-2 flex flex-wrap items-center gap-2;
+}
+
+.role-pill {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-[12px] font-semibold border;
+}
+
+.role-guest {
+  @apply bg-slate-900/10 text-slate-700 border-slate-300/70;
+}
+
+.role-user {
+  @apply bg-sky-500/10 text-sky-700 border-sky-300/70;
+}
+
+.role-admin {
+  @apply bg-violet-500/10 text-violet-700 border-violet-300/70;
+}
+
+.role-hint {
+  @apply mt-2 text-[12px] text-slate-500;
 }
 
 .primary {

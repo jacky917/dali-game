@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 
 export function useBigMask() {
-  const maskConfig = ref({ x: 0, y: 0, width: 900, height: 900, shape: 'circle', color: '#ffffff', step: 12 })
+  const maskConfig = ref({ x: 0, y: 0, width: 600, height: 600, shape: 'circle', color: '#ffffff', step: 12 })
 
   function updateMask(cfg: any) {
     maskConfig.value = { ...maskConfig.value, ...cfg }

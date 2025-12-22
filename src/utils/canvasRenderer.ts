@@ -48,6 +48,14 @@ export async function renderBaseImage(
     }
   }
 
+  // 紅框/網格：畫在底圖上（在題目文字之下）
+  if (config.canvasGridGuide) {
+    const g = Number(config.canvasGridThickness) || 2
+    const rows = Number(config.canvasGridRows) || Number(config.blockRows) || 3
+    const cols = Number(config.canvasGridCols) || Number(config.blockCols) || 3
+    drawGridGuide(ctx, cssW, cssH, g, rows, cols)
+  }
+
   if (config.text && config.text.length) {
     ctx.fillStyle = config.textColor || '#000'
     ctx.font = `${config.fontSize || 48}px ${config.font || 'sans-serif'}`
@@ -74,6 +82,42 @@ export async function renderBaseImage(
 
     ctx.fillText(config.text, x - xShift, y - yShift)
   }
+}
+
+function drawGridGuide(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  thickness: number,
+  rows: number,
+  cols: number
+) {
+  const t = Math.max(1, thickness)
+  ctx.save()
+  ctx.lineWidth = t
+  ctx.strokeStyle = 'rgba(239, 68, 68, 0.75)'
+
+  // border
+  ctx.strokeRect(t / 2, t / 2, w - t, h - t)
+
+  // internal grid lines
+  ctx.strokeStyle = 'rgba(239, 68, 68, 0.55)'
+  for (let c = 1; c < cols; c++) {
+    const x = (w * c) / cols
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x, h)
+    ctx.stroke()
+  }
+  for (let r = 1; r < rows; r++) {
+    const y = (h * r) / rows
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(w, y)
+    ctx.stroke()
+  }
+
+  ctx.restore()
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

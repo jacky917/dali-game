@@ -11,6 +11,12 @@ type BaseImageConfig = {
   backgroundUrl: string
   backgroundFit: string
   aspectRatio: number
+  canvasGridGuide?: boolean
+  canvasGridThickness?: number
+  canvasGridRows?: number
+  canvasGridCols?: number
+  blockRows?: number
+  blockCols?: number
 }
 
 export function useBaseImage() {

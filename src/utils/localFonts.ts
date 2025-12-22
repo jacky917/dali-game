@@ -83,10 +83,10 @@ async function loadFontFace(
 
 async function loadBundledFonts(seen: Set<string>): Promise<FontOption[]> {
   // 打包內字體：src/assets/fonts/**（Vite build 時會 hash 但 URL 會自動重寫）
-  // @ts-expect-error - Vite 支援 as: 'url'
   const files = import.meta.glob('../assets/fonts/**/*.{woff2,woff,ttf,otf}', {
     eager: true,
-    as: 'url',
+    query: '?url',
+    import: 'default',
   }) as Record<string, string>
 
   const next: FontOption[] = []
@@ -154,6 +154,8 @@ async function loadExternalFontsFromManifest(seen: Set<string>): Promise<FontOpt
 }
 
 export async function loadLocalFonts(): Promise<FontOption[]> {
+  // 已載入過就直接回傳，避免重複 load FontFace（也避免 Editor 反覆進出時浪費）
+  if (cachedLocalOptions.length > 0) return cachedLocalOptions
   if (loadPromise) return loadPromise
 
   loadPromise = (async () => {
@@ -170,10 +172,7 @@ export async function loadLocalFonts(): Promise<FontOption[]> {
 
     cachedLocalOptions = [...bundled, ...external]
     return cachedLocalOptions
-  })().finally(() => {
-    // allow retry on next call if needed
-    loadPromise = null
-  })
+  })()
 
   return loadPromise
 }
