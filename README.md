@@ -36,3 +36,13 @@ npm run dev
 ```sh
 npm run build
 ```
+
+### Preview Production Build Locally
+
+構建完成後，可以使用以下指令在本地啟動靜態伺服器預覽打包結果：
+
+```sh
+npm run preview
+```
+
+預設會在 `http://localhost:4173` 啟動，可以測試打包後的完整功能（包括本地字體、音效、路由等），確保部署前一切正常。

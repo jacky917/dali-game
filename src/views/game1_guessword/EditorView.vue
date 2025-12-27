@@ -471,7 +471,7 @@ import GameCanvas from '@/components/game1_guessword/GameCanvas.vue'
 import { getFontOptions, loadLocalFonts } from '@/utils/localFonts'
 import FloatingToast from '@/components/ui/FloatingToast.vue'
 import { useAuth } from '@/composables/useAuth'
-import { playSfx, type SfxId } from '@/utils/sfx'
+import { playSfx, getSfxOptions, type SfxId } from '@/utils/sfx'
 
 /**
  * EditorView（猜字遊戲題庫編輯器）
@@ -533,20 +533,9 @@ const blockStyles = [
 
 // ---------------------------
 // 共通選項（所有方塊樣式共用）
-// - 未來要新增音效/hover/動畫：優先改這些 options，維持擴充清楚
+// - 音效選項改為「自動讀入」：內建 pop + src/assets/sfx/** 資產音效
 // ---------------------------
-const SOUND_OPTIONS = [
-  { value: 'pop-1', label: 'Pop 1（輕快）' },
-  { value: 'pop-2', label: 'Pop 2（厚實）' },
-  { value: 'pop-3', label: 'Pop 3（俐落）' },
-  { value: 'pop-4', label: 'Pop 4（柔和）' },
-  { value: 'pop-5', label: 'Pop 5（雙音）' },
-  { value: 'pop-6', label: 'Pop 6（亮音）' },
-  { value: 'pop-7', label: 'Pop 7（鈴聲）' },
-  { value: 'pop-8', label: 'Pop 8（短促）' },
-  { value: 'pop-9', label: 'Pop 9（低沉）' },
-  { value: 'pop-10', label: 'Pop 10（賓果）' },
-]
+const SOUND_OPTIONS = getSfxOptions()
 
 const HOVER_OPTIONS = [
   { value: 'glow', label: 'Glow（微光）' },
